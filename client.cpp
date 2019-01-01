@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <string>
 #include <iostream>
+#include <limits>
 
 #define DEFAULT_PORT 2000
 #define DEFAULT_BUFLEN 512
@@ -37,19 +38,19 @@ DWORD WINAPI receiveMessagesProc(LPVOID lpParam){
 			printf("%s\n", recvbuf);
 		}else if(rtnVal == 0){
 			printf("connection closed.\n");
-			return 1;
+			exit(1);
 		}else{
 			printf("recv failed: %d\n", WSAGetLastError());
-			return 1;
+			exit(1);
 		}
 	}
 	
 	return 0;
 }
 
-// have a protocol:
-// when sending messages, append the user's name to the front of the message
 
+// have a protocol:
+// when sending messages, append the user's name to the front of the message?
 int main(int argc, char** argv){
 	
 	// validate args!
@@ -60,13 +61,23 @@ int main(int argc, char** argv){
 	// argv[1] = ip address to connect with 
 	// argv[2] = user name 
 	
+	// validate ip address?
+	
+	// set some limits on user name 
+	// let's make it up to 10 chars 
+	std::string nameCheck(argv[2]);
+	if(nameCheck.size() > 10){
+		printf("sorry, your username is too long.\n");
+		return 1;
+	}
+	
 	WSADATA wsaData;
 	
 	int iResult;
 	
 	//std::string test = "this is a test";
 	//const char *sendbuf = test.c_str();
-	char* username = argv[2];
+	const char* username = argv[2];
 	
 	// intialize winsock 
 	iResult = WSAStartup(MAKEWORD(2,2), &wsaData);
@@ -106,19 +117,57 @@ int main(int argc, char** argv){
 		return 1;
 	}else{
 		printf("was able to connect to server!\n");
+		printf("------------------------------\n");
 	}
 	
 	// create thread to receive messages 
 	receiveThread = CreateThread(NULL, 0, receiveMessagesProc, &connectSocket, 0, 0);
 	
 	// receive data/send data loop 
-	do{
+	// send initial message to server identifying the client 
+	std::string helloMsg = "hello:" + std::string(username);
+	const char *helloMsgBuf = (const char *)helloMsg.c_str();
+	send(connectSocket, helloMsgBuf, (int)strlen(helloMsgBuf), 0);
+	
+	// should we expect a confirmation???
+
+	// the format for all messages is like this:
+	// [IDENTIFIER]:[message]
+	do{	
+	
 		std::string newInputHead = username + std::string(": ");
 		std::string newInput;
 		std::getline(std::cin, newInput);
+		std::cin.clear();
+	
+		// I would like the user's input to be removed after pressing enter
+		// this is complicated though - what if you're typing and a message comes up? the message 
+		// will also interfere with what you're typing I think.
+		// http://www.cplusplus.com/forum/beginner/147204/ -> probably more helpful than below
+		// https://stackoverflow.com/questions/1508490/erase-the-current-printed-console-line
+		// better solution: make a win32 gui for this?
+
+		
+		// catch ctrl+c for quit?
+		// need to come up with protocol to separate termination messages
+		if(newInput == "quit"){
+			
+			// terminate receiving thread 
+			DWORD exitCode;
+			if(GetExitCodeThread(receiveThread, &exitCode) != 0){
+				TerminateThread(receiveThread, exitCode);
+			}
+			
+			shutdown(connectSocket, SD_SEND);
+			closesocket(connectSocket);
+			WSACleanup();
+			return 0;
+		}
+		
 		newInput = newInputHead + newInput; 
 		const char *msg = (const char *)newInput.c_str();
 		iResult = send(connectSocket, msg, (int)strlen(msg), 0);
+		
 	}while(iResult > 0);
 	
 	// at this point, connection is closed so disconnect
