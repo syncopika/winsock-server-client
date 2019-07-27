@@ -195,6 +195,9 @@ int main(void){
 								}
 							}
 						}else{
+							// whoa wait. what if client terminated via ctrl-c? currently this will crash the server since it will try to send back a message 
+							// to a non-existent-anymore client 
+							
 							// send message back to all connected clients 
 							// skip first index since that's the server socket (used only for accepting new clients)
 							// https://stackoverflow.com/questions/11532311/winsock-send-always-returns-error-10057-in-server

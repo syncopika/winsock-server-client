@@ -1,0 +1,5 @@
+#define ID_TEXTAREA 89
+#define ID_ADD_TEXT 90
+#define ID_SET_IP_ADDRESS 91
+#define ID_CONNECT 92
+#define ID_DISCONNECT 93
