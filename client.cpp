@@ -47,10 +47,10 @@ HFONT hFont = CreateFont(16, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, ANSI_CHARS
 HANDLE receiveThread;
 
 // to be executed in new thread 
+// uhhh need to pass it a HANDLE TO THE GUI WINDOW!!!
 DWORD WINAPI receiveMessagesProc(LPVOID lpParam){
 	
-	// pass in the socket for this client to receive on 
-	// dereference lpParam as a casted SOCKET pointer 
+	// pass in the socket for this client to receive on  
 	SOCKET clientSock = *(SOCKET *)lpParam;
 	char recvbuf[DEFAULT_BUFLEN] = {0};
 	int recvbuflen = DEFAULT_BUFLEN;
@@ -62,6 +62,8 @@ DWORD WINAPI receiveMessagesProc(LPVOID lpParam){
 		rtnVal = recv(clientSock, recvbuf, recvbuflen, 0);
 		if(rtnVal > 0){
 			//printf("bytes received: %d\n", iResult);
+			// print message from server here
+			// use handle of GUI to post message!
 			printf("%s\n", recvbuf);
 		}else if(rtnVal == 0){
 			printf("connection closed.\n");
@@ -122,6 +124,21 @@ void createConnectionPage(HWND hwnd, HINSTANCE hInstance){
 }
 
 void createChatPage(HWND hwnd, HINSTANCE hInstance){
+	
+	// text edit area to enter text 
+	HWND enterTextBox = CreateWindow(
+		TEXT("edit"),
+		TEXT(""),
+		WS_VISIBLE | WS_CHILD | WS_BORDER, 
+		10, 25, 
+		280, 20,
+		hwnd,
+		(HMENU)ID_ENTER_TEXT_BOX,
+		hInstance,
+		NULL
+	);
+	SendMessage(enterTextBox, WM_SETFONT, (WPARAM)hFont, true);
+	
 	//text area to display text
 	HWND textArea = CreateWindow(
 		TEXT("edit"),
@@ -186,6 +203,12 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 					// note that LPCWSTR won't work and will only yield the first character
 					// why? does it have to do with casting with L?
 					//LPCWSTR newText = L"this is new text\n";
+					
+					// grab the text in the 'enter text' box 
+					// post to server 
+					// don't put the text on client's gui - let it come back from the server to display
+					//const char *helloMsgBuf = (const char *)helloMsg.c_str();
+					//send(connectSocket, helloMsgBuf, (int)strlen(helloMsgBuf), 0);
 					
 					std::string s = "this is new text\n";
 	
