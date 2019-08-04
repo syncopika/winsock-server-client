@@ -8,6 +8,7 @@
 #include <string>
 #include <iostream>
 #include <limits>
+#include <ctime>
 #include "resources.h"
 
 #define DEFAULT_PORT 2000
@@ -15,6 +16,12 @@
 
 // for improving GUI appearance
 #include <commctrl.h> 
+
+// struct to hold socket info, gui window handler 
+struct info {
+	SOCKET socket;
+	HWND hwnd;
+};
 
 // register window 
 const char g_szClassName[] = "main GUI";
@@ -31,6 +38,7 @@ WSADATA wsaData;
 int iResult;
 const char* username = "user1";
 SOCKET connectSocket;
+info guiInfo;
 
 // use Tahoma font for the text 
 // this HFONT object needs to be deleted (via DeleteObject) when program ends 
@@ -46,12 +54,16 @@ HFONT hFont = CreateFont(16, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, ANSI_CHARS
 // https://stackoverflow.com/questions/27610316/winsock-single-client-server-send-and-receive-simultaneously
 HANDLE receiveThread;
 
+
 // to be executed in new thread 
 // uhhh need to pass it a HANDLE TO THE GUI WINDOW!!!
 DWORD WINAPI receiveMessagesProc(LPVOID lpParam){
 	
+	HWND window = ((info *)lpParam)->hwnd;
+	HWND textBox = GetDlgItem(window, ID_TEXTAREA);
+	
 	// pass in the socket for this client to receive on  
-	SOCKET clientSock = *(SOCKET *)lpParam;
+	SOCKET clientSock = ((info *)lpParam)->socket; //*(SOCKET *)lpParam;
 	char recvbuf[DEFAULT_BUFLEN] = {0};
 	int recvbuflen = DEFAULT_BUFLEN;
 	int rtnVal;
@@ -61,10 +73,25 @@ DWORD WINAPI receiveMessagesProc(LPVOID lpParam){
 		ZeroMemory(recvbuf, recvbuflen);
 		rtnVal = recv(clientSock, recvbuf, recvbuflen, 0);
 		if(rtnVal > 0){
-			//printf("bytes received: %d\n", iResult);
-			// print message from server here
-			// use handle of GUI to post message!
-			printf("%s\n", recvbuf);
+
+			//printf("%s\n", recvbuf);
+			
+			// get curr time
+			std::time_t timeNow = std::time(NULL);
+			std::tm* ptm = std::localtime(&timeNow);
+	
+			char buff[32];
+			std::strftime(buff, 32, "%d-%m-%Y_%H%M%S", ptm);
+			std::string currTime = std::string(buff);
+			
+			std::string s = currTime + ": " + std::string(recvbuf) + "\n";
+			std::cout << "message received from server: " << s << std::endl;
+			
+			int textLen = GetWindowTextLength(textBox);
+			std::cout << "curr text length in text box: " << textLen << std::endl;
+			SendMessage(textBox, EM_SETSEL, textLen, textLen); // move pointer to where new text should go 
+			SendMessage(textBox, EM_REPLACESEL, FALSE, (LPARAM)s.c_str());
+			
 		}else if(rtnVal == 0){
 			printf("connection closed.\n");
 			exit(1);
@@ -107,7 +134,6 @@ void createConnectionPage(HWND hwnd, HINSTANCE hInstance){
 	);
 	SendMessage(setIPAddressBox, WM_SETFONT, (WPARAM)hFont, true);
 	
-	
 	// make a button to connect
 	HWND connectButton = CreateWindow(
 		TEXT("button"),
@@ -121,6 +147,20 @@ void createConnectionPage(HWND hwnd, HINSTANCE hInstance){
         NULL
 	);
 	SendMessage(connectButton, WM_SETFONT, (WPARAM)hFont, true);
+	
+	// label to display an error connecting message 
+	HWND errConnectLabel = CreateWindow(
+	    TEXT("STATIC"),
+        TEXT(""),
+        WS_VISIBLE | WS_CHILD | SS_LEFT,
+        120, 150,
+        250, 20,
+        hwnd,
+        (HMENU)ID_ERR_CONNECT_LABEL,
+        hInstance,
+        NULL
+	);
+	SendMessage(errConnectLabel, WM_SETFONT, (WPARAM)hFont, true);
 }
 
 void createChatPage(HWND hwnd, HINSTANCE hInstance){
@@ -182,6 +222,7 @@ void createChatPage(HWND hwnd, HINSTANCE hInstance){
 	SendMessage(disconnectButton, WM_SETFONT, (WPARAM)hFont, true);
 }
 
+// for the chat page 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
     
     switch(msg){
@@ -195,33 +236,37 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
                 {
 					// get handle to text box 
 					// https://stackoverflow.com/questions/23545216/win32-edit-box-displaying-in-new-lines
-					HWND textBox = GetDlgItem(hwnd, ID_TEXTAREA);
+					//HWND textBox = GetDlgItem(hwnd, ID_TEXTAREA);
 
-					int textLen = GetWindowTextLength(textBox); //SendMessage(textBox, WM_GETTEXTLENGTH, 0, 0);
-					std::cout << "length: " << textLen << std::endl;
+					//int textLen = GetWindowTextLength(textBox); //SendMessage(textBox, WM_GETTEXTLENGTH, 0, 0);
+					//std::cout << "length: " << textLen << std::endl;
 					
 					// note that LPCWSTR won't work and will only yield the first character
 					// why? does it have to do with casting with L?
 					//LPCWSTR newText = L"this is new text\n";
 					
 					// grab the text in the 'enter text' box 
-					// post to server 
-					// don't put the text on client's gui - let it come back from the server to display
-					//const char *helloMsgBuf = (const char *)helloMsg.c_str();
-					//send(connectSocket, helloMsgBuf, (int)strlen(helloMsgBuf), 0);
+					// post to server
+					HWND enterTextBox = GetDlgItem(hwnd, ID_ENTER_TEXT_BOX);
+					int textLen = GetWindowTextLength(enterTextBox);
+					TCHAR text[textLen + 1]; // +1 for null term 
+					GetWindowText(enterTextBox, text, textLen + 1);
+					std::string theText = std::string(text);
+					std::cout << "text entered: " << theText << std::endl;
 					
-					std::string s = "this is new text\n";
-	
-					// add text to the text box 
-					SendMessage(textBox, EM_SETSEL, textLen, textLen);
-					SendMessage(textBox, EM_REPLACESEL, FALSE, (LPARAM)s.c_str());
+					// send the text to the server to post to all clients 
+					const char *msgBuf = (const char *)theText.c_str();
+					send(connectSocket, msgBuf, (int)strlen(msgBuf), 0);
+					
+					// clear the textbox after sending the msg 
+					SetDlgItemText(hwnd, ID_ENTER_TEXT_BOX, "");
                 }
                 break;
 				
 				case ID_CONNECT:
 				{
-					// try to connect to server 
-					//std::cout << "whooooooooo" << std::endl;
+					// try to connect to server
+					SetDlgItemText(hwnd, ID_ERR_CONNECT_LABEL, "connecting...");
 					
 					// get the ip addr (need to validate it!)
 					HWND ipAddrBox = GetDlgItem(hwnd, ID_SET_IP_ADDRESS);
@@ -254,28 +299,34 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 					if(iResult != 0){
 						printf("getaddrinfo failed: %d\n", iResult);
 						WSACleanup();
-						return 1;
-					}
-
-					servAddr.sin_port = htons(DEFAULT_PORT);
-					
-					// CONNECT TO THE SERVER
-					iResult = connect(connectSocket, (struct sockaddr *)&servAddr, sizeof(servAddr));
-					if(iResult == SOCKET_ERROR){
-						closesocket(connectSocket);
-						connectSocket = INVALID_SOCKET;
-						PostQuitMessage(0);
+						
+						SetDlgItemText(hwnd, ID_ERR_CONNECT_LABEL, "failed to connect! :(");
 					}else{
-						printf("was able to connect to server!\n");
-						printf("------------------------------\n");
+						servAddr.sin_port = htons(DEFAULT_PORT);
 						
-						// create thread to receive messages 
-						receiveThread = CreateThread(NULL, 0, receiveMessagesProc, &connectSocket, 0, 0);
-						
-						// move on to chat page
-						ShowWindow(connectionPage, SW_HIDE);
-						ShowWindow(chatPage, SW_SHOW);
-						UpdateWindow(hwnd);
+						// CONNECT TO THE SERVER
+						iResult = connect(connectSocket, (struct sockaddr *)&servAddr, sizeof(servAddr));
+						if(iResult == SOCKET_ERROR){
+							closesocket(connectSocket);
+							connectSocket = INVALID_SOCKET;
+							SetDlgItemText(hwnd, ID_ERR_CONNECT_LABEL, "invalid socket error! :(");
+						}else{
+							printf("was able to connect to server!\n");
+							printf("------------------------------\n");
+							
+							// create thread to receive messages 
+							guiInfo.socket = connectSocket;
+							
+							// refer to the window handler of the chat page (the current hwnd is the connection page)
+							guiInfo.hwnd = chatPage;
+
+							receiveThread = CreateThread(NULL, 0, receiveMessagesProc, &guiInfo, 0, 0);
+							
+							// move on to chat page
+							ShowWindow(connectionPage, SW_HIDE);
+							ShowWindow(chatPage, SW_SHOW);
+							UpdateWindow(hwnd);
+						}
 					}
 				}
 				break;
@@ -301,6 +352,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 					ShowWindow(chatPage, SW_HIDE);
 					ShowWindow(connectionPage, SW_SHOW);
 					UpdateWindow(hwnd);
+					
+					SetDlgItemText(connectionPage, ID_ERR_CONNECT_LABEL, "");
 				}
 				break;
             }
@@ -349,8 +402,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow){
 
     /* console attached for debugging */
-    AllocConsole();
-    freopen( "CON", "w", stdout );
+    //AllocConsole();
+    //freopen( "CON", "w", stdout );
 	    
     // for improving the gui appearance (buttons, that is. the font needs to be changed separately) 
     INITCOMMONCONTROLSEX icc;

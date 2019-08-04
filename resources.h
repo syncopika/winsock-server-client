@@ -4,3 +4,4 @@
 #define ID_CONNECT 92
 #define ID_DISCONNECT 93
 #define ID_ENTER_TEXT_BOX 94
+#define ID_ERR_CONNECT_LABEL 95

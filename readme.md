@@ -2,6 +2,10 @@
     
 The server program allows multiple clients to chat with each other by using select(). Any message a client sends to the server gets broadcasted to all connected clients.    
     
-The client program takes 2 arguments - the first being an IP address of the server to connect to, and the second being a username of the client. There is a 10-character limit for the username, and 'quit' should be typed and entered to disconnect from the server.    
+The client program has a GUI!    
+![client gui screenshot](screenshots/clientgui1.png)    
+![client gui screenshot](screenshots/clientgui2.png)    
+    
+Not completely functional atm (i.e. no username input right now) but can connect with the server at least!    
     
 ![screenshot of the server and 2 clients](screenshots/screenshot.png)    

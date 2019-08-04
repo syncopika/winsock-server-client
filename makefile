@@ -31,4 +31,4 @@ client.o: client.cpp resources.h
 	$(CXX) $(FLAGS) $< -o $@
 	
 clean:
-	rm *.exe && rm *.o
+	rm *.o
