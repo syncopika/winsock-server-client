@@ -182,17 +182,18 @@ int main(void){
 						
 						if(identifier == "hello"){
 							std::string newClientJoinedMsg = restOfMsg + " has joined the server!";
+							std::cout << newClientJoinedMsg << std::endl;
 							
 							// add new user to map (restOfMSg in this case is the username)
 							socketToUserMap.insert( std::pair<SOCKET, std::string>(currSocketFd, restOfMsg) );
 							
 							const char *msgToSend = (const char *)newClientJoinedMsg.c_str();
 							for(int j = 1; j < (int)newSocketArray.size(); j++){
-								if(clientSocket != (SOCKET)newSocketArray.at(j)){
+								//if(clientSocket != (SOCKET)newSocketArray.at(j)){
 									SOCKET sockFd = (SOCKET)newSocketArray.at(j);
 									sendResult = send(sockFd, msgToSend, (int)strlen(msgToSend), 0);
 									socketErrorCheck(sendResult, sockFd, "send");
-								}
+								//}
 							}
 						}else{
 							// whoa wait. what if client terminated via ctrl-c? currently this will crash the server since it will try to send back a message 

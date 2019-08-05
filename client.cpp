@@ -36,9 +36,10 @@ HWND connectionPage;
 // variables for networking
 WSADATA wsaData;
 int iResult;
-const char* username = "user1";
+//const char* username = "user1";
 SOCKET connectSocket;
 info guiInfo;
+std::string username;
 
 // use Tahoma font for the text 
 // this HFONT object needs to be deleted (via DeleteObject) when program ends 
@@ -134,12 +135,41 @@ void createConnectionPage(HWND hwnd, HINSTANCE hInstance){
 	);
 	SendMessage(setIPAddressBox, WM_SETFONT, (WPARAM)hFont, true);
 	
+	// enter username label 
+	HWND setUsernameLabel = CreateWindow(
+	    TEXT("STATIC"),
+        TEXT("Enter username: "),
+        WS_VISIBLE | WS_CHILD | SS_LEFT,
+        10, 75,
+        250, 20,
+        hwnd,
+        NULL,
+        hInstance,
+        NULL
+	);
+	SendMessage(setUsernameLabel, WM_SETFONT, (WPARAM)hFont, true);
+	
+	// edit box to enter a username (max 15 chars)
+	HWND setUsernameBox = CreateWindow(
+		TEXT("edit"),
+		TEXT(""),
+		WS_VISIBLE | WS_CHILD | WS_BORDER, 
+		200, 75,  /* x, y coords */
+		150, 20, /* width, height */
+		hwnd,
+		(HMENU)ID_SET_USERNAME,
+		hInstance,
+		NULL
+	);
+	SendMessage(setUsernameBox, WM_SETFONT, (WPARAM)hFont, true);
+	
+	
 	// make a button to connect
 	HWND connectButton = CreateWindow(
 		TEXT("button"),
 		TEXT("connect"),
 		WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-        150, 100, // x, y
+        150, 150, // x, y
         60, 20, // width, height
         hwnd,
         (HMENU)ID_CONNECT,
@@ -153,7 +183,7 @@ void createConnectionPage(HWND hwnd, HINSTANCE hInstance){
 	    TEXT("STATIC"),
         TEXT(""),
         WS_VISIBLE | WS_CHILD | SS_LEFT,
-        120, 150,
+        120, 230,
         250, 20,
         hwnd,
         (HMENU)ID_ERR_CONNECT_LABEL,
@@ -245,7 +275,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 					// why? does it have to do with casting with L?
 					//LPCWSTR newText = L"this is new text\n";
 					
-					// grab the text in the 'enter text' box 
+					// grab the text in the 'enter text' box
 					// post to server
 					HWND enterTextBox = GetDlgItem(hwnd, ID_ENTER_TEXT_BOX);
 					int textLen = GetWindowTextLength(enterTextBox);
@@ -275,6 +305,12 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 					std::string ip = std::string(ipAddr);
 					const char* theIp = ip.c_str();
 					//std::cout << "the ip address: " << ip << std::endl;
+					
+					// also get the username!
+					HWND usernameBox = GetDlgItem(hwnd, ID_SET_USERNAME);
+					TCHAR user[16];
+					GetWindowText(usernameBox, user, ID_SET_USERNAME);
+					username = std::string(user);
 				
 					iResult = WSAStartup(MAKEWORD(2,2), &wsaData);
 					if(iResult != 0){
@@ -326,6 +362,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 							ShowWindow(connectionPage, SW_HIDE);
 							ShowWindow(chatPage, SW_SHOW);
 							UpdateWindow(hwnd);
+							
+							// send server initial message (client identifies self)
+							std::string helloMsg = "hello:" + username;
+							const char *helloMsgBuf = (const char *)helloMsg.c_str();
+							send(connectSocket, helloMsgBuf, (int)strlen(helloMsgBuf), 0);	
 						}
 					}
 				}

@@ -8,4 +8,6 @@ The client program has a GUI!
     
 Not completely functional atm (i.e. no username input right now) but can connect with the server at least!    
     
+---
+very first version (no GUI :( )    
 ![screenshot of the server and 2 clients](screenshots/screenshot.png)    
