@@ -85,7 +85,7 @@ DWORD WINAPI receiveMessagesProc(LPVOID lpParam){
 			std::strftime(buff, 32, "%d-%m-%Y_%H%M%S", ptm);
 			std::string currTime = std::string(buff);
 			
-			std::string s = currTime + ": " + std::string(recvbuf) + "\n";
+			std::string s = currTime + " " + std::string(recvbuf) + "\n";
 			std::cout << "message received from server: " << s << std::endl;
 			
 			int textLen = GetWindowTextLength(textBox);

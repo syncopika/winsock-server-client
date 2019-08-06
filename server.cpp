@@ -189,6 +189,7 @@ int main(void){
 							
 							const char *msgToSend = (const char *)newClientJoinedMsg.c_str();
 							for(int j = 1; j < (int)newSocketArray.size(); j++){
+								// broadcast to everyone 
 								//if(clientSocket != (SOCKET)newSocketArray.at(j)){
 									SOCKET sockFd = (SOCKET)newSocketArray.at(j);
 									sendResult = send(sockFd, msgToSend, (int)strlen(msgToSend), 0);
@@ -197,14 +198,18 @@ int main(void){
 							}
 						}else{
 							// whoa wait. what if client terminated via ctrl-c? currently this will crash the server since it will try to send back a message 
-							// to a non-existent-anymore client 
+							// to a non-existent-anymore client '
+							
+							// also, who sent the message? everyone needs to know! 
+							std::string m = std::string(recvbuf);
+							m = socketToUserMap[currSocketFd] + ": " + m;
 							
 							// send message back to all connected clients 
 							// skip first index since that's the server socket (used only for accepting new clients)
 							// https://stackoverflow.com/questions/11532311/winsock-send-always-returns-error-10057-in-server
 							for(int j = 1; j < (int)newSocketArray.size(); j++){
 								SOCKET sockFd = (SOCKET)newSocketArray.at(j);
-								sendResult = send(sockFd, recvbuf, iResult, 0);
+								sendResult = send(sockFd, m.c_str(), (int)m.size() + 1, 0);
 								socketErrorCheck(sendResult, sockFd, "send");
 							}
 						}
