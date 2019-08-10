@@ -226,7 +226,7 @@ void createChatPage(HWND hwnd, HINSTANCE hInstance){
 	// make a button to post text  
 	HWND addTextButton = CreateWindow(
 		TEXT("button"),
-		TEXT("add text"),
+		TEXT("send"),
 		WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
         300, 50, // x, y
         60, 20, // width, height
@@ -386,7 +386,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 						printf("shutdown failed: %d\n", WSAGetLastError());
 						closesocket(connectSocket);
 						WSACleanup();
-						PostQuitMessage(0);
+						return 1;
+						//PostQuitMessage(0);
 					}
 					closesocket(connectSocket);
 					
@@ -403,6 +404,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 			
 		case WM_CLOSE:
 			{
+				DWORD exitCode;
+				if(GetExitCodeThread(receiveThread, &exitCode) != 0){
+					TerminateThread(receiveThread, exitCode);
+				}
+					
 				// gotta close socket here 
 				iResult = shutdown(connectSocket, SD_SEND);
 				if(iResult == SOCKET_ERROR){
@@ -419,6 +425,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 			
 		case WM_DESTROY:
 			{
+				DWORD exitCode;
+				if(GetExitCodeThread(receiveThread, &exitCode) != 0){
+					TerminateThread(receiveThread, exitCode);
+				}
+				
 				// gotta close socket here 
 				iResult = shutdown(connectSocket, SD_SEND);
 				if(iResult == SOCKET_ERROR){

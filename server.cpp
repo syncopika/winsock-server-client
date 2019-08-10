@@ -186,30 +186,29 @@ int main(void){
 							
 							// add new user to map (restOfMSg in this case is the username)
 							socketToUserMap.insert( std::pair<SOCKET, std::string>(currSocketFd, restOfMsg) );
+							std::cout << "adding user: " << restOfMsg << ", socket fd: " << currSocketFd << std::endl;
 							
 							const char *msgToSend = (const char *)newClientJoinedMsg.c_str();
 							for(int j = 1; j < (int)newSocketArray.size(); j++){
 								// broadcast to everyone 
-								//if(clientSocket != (SOCKET)newSocketArray.at(j)){
-									SOCKET sockFd = (SOCKET)newSocketArray.at(j);
-									sendResult = send(sockFd, msgToSend, (int)strlen(msgToSend), 0);
-									socketErrorCheck(sendResult, sockFd, "send");
-								//}
+								SOCKET sockFd = (SOCKET)newSocketArray.at(j);
+								sendResult = send(sockFd, msgToSend, (int)strlen(msgToSend), 0);
+								socketErrorCheck(sendResult, sockFd, "send");
 							}
 						}else{
 							// whoa wait. what if client terminated via ctrl-c? currently this will crash the server since it will try to send back a message 
-							// to a non-existent-anymore client '
+							// to a non-existent-anymore client (or if a client disconnects)
 							
 							// also, who sent the message? everyone needs to know! 
-							std::string m = std::string(recvbuf);
-							m = socketToUserMap[currSocketFd] + ": " + m;
+							std::string msg = std::string(recvbuf);
+							msg = socketToUserMap[currSocketFd] + ": " + msg;
 							
 							// send message back to all connected clients 
 							// skip first index since that's the server socket (used only for accepting new clients)
 							// https://stackoverflow.com/questions/11532311/winsock-send-always-returns-error-10057-in-server
 							for(int j = 1; j < (int)newSocketArray.size(); j++){
 								SOCKET sockFd = (SOCKET)newSocketArray.at(j);
-								sendResult = send(sockFd, m.c_str(), (int)m.size() + 1, 0);
+								sendResult = send(sockFd, msg.c_str(), (int)msg.size() + 1, 0);
 								socketErrorCheck(sendResult, sockFd, "send");
 							}
 						}
@@ -227,23 +226,43 @@ int main(void){
 						closesocket(currSocketFd);
 						FD_CLR(currSocketFd, &activeFdSet);
 						
+						// user that has left 
+						std::string userThatLeft = socketToUserMap[currSocketFd];
+						
 						// remove socket from map  
 						socketToUserMap.erase(currSocketFd);
+						
+						// who else is in the server 
+						std::cout << "remaining users: " << std::endl;
+						std::unordered_map<SOCKET, std::string>::iterator it;
+						for (it=socketToUserMap.begin(); it!=socketToUserMap.end(); ++it){
+							std::cout << "key: " << it->first << ", value: " << it->second << std::endl;
+						}
 						
 						// need to remove the socket from the sockets array!
 						// use the new socket array to record changes. 
 						// TODO: also tell everyone that this user left the server 
+						std::string leftMsg = userThatLeft + " has left the server!";
+						std::cout << leftMsg << std::endl;
+						
 						std::vector<SOCKET> tempArr; 
 						for(auto sock: newSocketArray){
-							if((SOCKET)sock != currSocketFd){
+							if((SOCKET)sock != currSocketFd && (SOCKET)sock != serverSocket){
 								tempArr.push_back((SOCKET)sock);
+								
+								// tell the user at this socket who left the server 
+								sendResult = send(sock, leftMsg.c_str(), (int)leftMsg.size() + 1, 0);
+								socketErrorCheck(sendResult, sock, "send");
 							}
 						}
 						newSocketArray.assign(tempArr.begin(), tempArr.end());
+						
+						// add the server socket 
+						newSocketArray.push_back(serverSocket);
 					}else{
 						printf("recv failed: %d\n", WSAGetLastError());
 						closesocket(currSocketFd);
-						//FD_CLR(currSocketFd, &activeFdSet);
+						FD_CLR(currSocketFd, &activeFdSet);
 						WSACleanup();
 						return 1;
 					}
