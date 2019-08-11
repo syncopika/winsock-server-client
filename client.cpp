@@ -85,7 +85,7 @@ DWORD WINAPI receiveMessagesProc(LPVOID lpParam){
 			std::strftime(buff, 32, "%d-%m-%Y_%H%M%S", ptm);
 			std::string currTime = std::string(buff);
 			
-			std::string s = currTime + " " + std::string(recvbuf) + "\n";
+			std::string s = "\r\n" + currTime + " " + std::string(recvbuf) + "\r\n";
 			std::cout << "message received from server: " << s << std::endl;
 			
 			int textLen = GetWindowTextLength(textBox);
@@ -169,7 +169,7 @@ void createConnectionPage(HWND hwnd, HINSTANCE hInstance){
 		TEXT("button"),
 		TEXT("connect"),
 		WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-        150, 150, // x, y
+        160, 150, // x, y
         60, 20, // width, height
         hwnd,
         (HMENU)ID_CONNECT,
@@ -264,13 +264,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 				
                 case ID_ADD_TEXT:
                 {
-					// get handle to text box 
 					// https://stackoverflow.com/questions/23545216/win32-edit-box-displaying-in-new-lines
-					//HWND textBox = GetDlgItem(hwnd, ID_TEXTAREA);
 
-					//int textLen = GetWindowTextLength(textBox); //SendMessage(textBox, WM_GETTEXTLENGTH, 0, 0);
-					//std::cout << "length: " << textLen << std::endl;
-					
 					// note that LPCWSTR won't work and will only yield the first character
 					// why? does it have to do with casting with L?
 					//LPCWSTR newText = L"this is new text\n";
@@ -281,6 +276,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 					int textLen = GetWindowTextLength(enterTextBox);
 					TCHAR text[textLen + 1]; // +1 for null term 
 					GetWindowText(enterTextBox, text, textLen + 1);
+					
 					std::string theText = std::string(text);
 					std::cout << "text entered: " << theText << std::endl;
 					
@@ -595,152 +591,3 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     }
     return Msg.wParam;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-// have a protocol:
-// when sending messages, append the user's name to the front of the message?
-int main(int argc, char** argv){
-	
-	// validate args!
-	if(argc != 3){
-		return 1;
-	}
-	
-	// argv[1] = ip address to connect with 
-	// argv[2] = user name 
-	
-	// validate ip address?
-	
-	// set some limits on user name 
-	// let's make it up to 10 chars 
-	std::string nameCheck(argv[2]);
-	if(nameCheck.size() > 10){
-		printf("sorry, your username is too long.\n");
-		return 1;
-	}
-	
-	WSADATA wsaData;
-	
-	int iResult;
-	
-	//std::string test = "this is a test";
-	//const char *sendbuf = test.c_str();
-	const char* username = argv[2];
-	
-	// intialize winsock 
-	iResult = WSAStartup(MAKEWORD(2,2), &wsaData);
-	if(iResult != 0){
-		printf("WSAStartup failed: %d\n", iResult);
-		return 1;
-	}
-	
-	
-	// start socket stuff
-	SOCKET connectSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if(connectSocket == INVALID_SOCKET){
-		printf("socket() failed\n");
-		WSACleanup();
-		return 1;
-	}
-	
-	struct sockaddr_in servAddr;
-	ZeroMemory(&servAddr, sizeof(servAddr));
-	servAddr.sin_family = AF_INET;
-	
-	int size = sizeof(servAddr);
-	iResult = WSAStringToAddressA(argv[1], AF_INET, NULL, (struct sockaddr *)&servAddr, &size);
-	if(iResult != 0){
-		printf("getaddrinfo failed: %d\n", iResult);
-		WSACleanup();
-		return 1;
-	}
-
-	servAddr.sin_port = htons(DEFAULT_PORT);
-	
-	// CONNECT TO THE SERVER
-	iResult = connect(connectSocket, (struct sockaddr *)&servAddr, sizeof(servAddr));
-	if(iResult == SOCKET_ERROR){
-		closesocket(connectSocket);
-		connectSocket = INVALID_SOCKET;
-		return 1;
-	}else{
-		printf("was able to connect to server!\n");
-		printf("------------------------------\n");
-	}
-	
-	// create thread to receive messages 
-	receiveThread = CreateThread(NULL, 0, receiveMessagesProc, &connectSocket, 0, 0);
-	
-	// receive data/send data loop 
-	// send initial message to server identifying the client 
-	std::string helloMsg = "hello:" + std::string(username);
-	const char *helloMsgBuf = (const char *)helloMsg.c_str();
-	send(connectSocket, helloMsgBuf, (int)strlen(helloMsgBuf), 0);
-	
-	// should we expect a confirmation???
-
-	// the format for all messages is like this:
-	// [IDENTIFIER]:[message]
-	do{	
-	
-		std::string newInputHead = username + std::string(": ");
-		std::string newInput;
-		std::getline(std::cin, newInput);
-		std::cin.clear();
-	
-		// I would like the user's input to be removed after pressing enter
-		// this is complicated though - what if you're typing and a message comes up? the message 
-		// will also interfere with what you're typing I think.
-		// http://www.cplusplus.com/forum/beginner/147204/ -> probably more helpful than below
-		// https://stackoverflow.com/questions/1508490/erase-the-current-printed-console-line
-		// better solution: make a win32 gui for this?
-
-		// catch ctrl+c for quit?
-		// need to come up with protocol to separate termination messages
-		if(newInput == "quit"){
-			
-			// terminate receiving thread 
-			DWORD exitCode;
-			if(GetExitCodeThread(receiveThread, &exitCode) != 0){
-				TerminateThread(receiveThread, exitCode);
-			}
-			
-			shutdown(connectSocket, SD_SEND);
-			closesocket(connectSocket);
-			WSACleanup();
-			return 0;
-		}
-		
-		newInput = newInputHead + newInput; 
-		const char *msg = (const char *)newInput.c_str();
-		iResult = send(connectSocket, msg, (int)strlen(msg), 0);
-		
-	}while(iResult > 0);
-	
-	// at this point, connection is closed so disconnect
-	iResult = shutdown(connectSocket, SD_SEND);
-	if(iResult == SOCKET_ERROR){
-		printf("shutdown failed: %d\n", WSAGetLastError());
-		closesocket(connectSocket);
-		WSACleanup();
-		return 1;
-	}
-	
-	closesocket(connectSocket);
-	WSACleanup();
-	
-	return 0;
-}
-*/

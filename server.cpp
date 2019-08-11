@@ -229,7 +229,7 @@ int main(void){
 						// user that has left 
 						std::string userThatLeft = socketToUserMap[currSocketFd];
 						
-						// remove socket from map  
+						// remove the socket of the user that left from map  
 						socketToUserMap.erase(currSocketFd);
 						
 						// who else is in the server 
@@ -241,7 +241,6 @@ int main(void){
 						
 						// need to remove the socket from the sockets array!
 						// use the new socket array to record changes. 
-						// TODO: also tell everyone that this user left the server 
 						std::string leftMsg = userThatLeft + " has left the server!";
 						std::cout << leftMsg << std::endl;
 						
