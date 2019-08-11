@@ -6,8 +6,6 @@ The client program has a GUI!
 ![client gui screenshot](screenshots/clientgui1.png)    
 ![client gui screenshot](screenshots/clientgui2.png)    
     
-Not completely functional atm (i.e. no username input right now) but can connect with the server at least!    
-    
 ---
 very first version (no GUI :( )    
 ![screenshot of the server and 2 clients](screenshots/screenshot.png)    
