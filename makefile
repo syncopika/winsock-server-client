@@ -2,6 +2,8 @@
 
 CXX = g++
 
+HEADER = headers/
+
 GUI_LIBS = -lmingw32 -lcomctl32 -mwindows 
 
 LIB = -lws2_32 -lmswsock
@@ -14,7 +16,7 @@ EXE = server.exe client.exe
 
 SERVER_OBJ = server.o 
 
-CLIENT_OBJ = client.o
+CLIENT_OBJ =  client.o client_helper.o
 
 all: $(EXE)
 
@@ -27,7 +29,10 @@ client.exe: $(CLIENT_OBJ)
 server.o: server.cpp 
 	$(CXX) $(FLAGS) $< -o $@
 	
-client.o: client.cpp resources.h
+client_helper.o: client_helper.cpp $(HEADER)client_helper.hh 
+	$(CXX) $(FLAGS) $< -o $@
+	
+client.o: client.cpp $(HEADER)client_helper.hh
 	$(CXX) $(FLAGS) $< -o $@
 	
 clean:

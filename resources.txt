@@ -1,0 +1,16 @@
+// listen to enter key press after typing message to send 
+https://cboard.cprogramming.com/windows-programming/148771-subclassing-edit-box.html
+https://stackoverflow.com/questions/30668040/specifying-a-window-procedure-for-child-windows
+https://stackoverflow.com/questions/15651401/how-to-capture-enter-key-in-combobox-using-win32-api-c-c
+
+// for inet_pton - https://stackoverflow.com/questions/15660203/inet-pton-identifier-not-found/15660299
+// https://stackoverflow.com/questions/1561469/is-there-an-alternative-to-inet-ntop-inetntop-in-windows-xp
+
+// need 1 extra thread for sending messages. 
+// https://stackoverflow.com/questions/27610316/winsock-single-client-server-send-and-receive-simultaneously
+
+// gah, lol
+https://stackoverflow.com/questions/23296419/c-winapi-subclassing-an-edit-control-annoying-sound-when-clicking-enter
+
+// good to know (my current file structure is whack)
+https://stackoverflow.com/questions/10422034/when-to-use-extern-in-c

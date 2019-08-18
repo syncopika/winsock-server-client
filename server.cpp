@@ -193,12 +193,9 @@ int main(void){
 								// broadcast to everyone 
 								SOCKET sockFd = (SOCKET)newSocketArray.at(j);
 								sendResult = send(sockFd, msgToSend, (int)strlen(msgToSend), 0);
-								socketErrorCheck(sendResult, sockFd, "send");
+								socketErrorCheck(sendResult, sockFd, "new client joined initial send");
 							}
-						}else{
-							// whoa wait. what if client terminated via ctrl-c? currently this will crash the server since it will try to send back a message 
-							// to a non-existent-anymore client (or if a client disconnects)
-							
+						}else{							
 							// also, who sent the message? everyone needs to know! 
 							std::string msg = std::string(recvbuf);
 							msg = socketToUserMap[currSocketFd] + ": " + msg;
@@ -209,7 +206,7 @@ int main(void){
 							for(int j = 1; j < (int)newSocketArray.size(); j++){
 								SOCKET sockFd = (SOCKET)newSocketArray.at(j);
 								sendResult = send(sockFd, msg.c_str(), (int)msg.size() + 1, 0);
-								socketErrorCheck(sendResult, sockFd, "send");
+								socketErrorCheck(sendResult, sockFd, "broadcast");
 							}
 						}
 						
@@ -245,6 +242,10 @@ int main(void){
 						std::cout << leftMsg << std::endl;
 						
 						std::vector<SOCKET> tempArr; 
+						
+						// add the server socket to the front!
+						tempArr.push_back(serverSocket);
+						
 						for(auto sock: newSocketArray){
 							if((SOCKET)sock != currSocketFd && (SOCKET)sock != serverSocket){
 								tempArr.push_back((SOCKET)sock);
@@ -256,8 +257,6 @@ int main(void){
 						}
 						newSocketArray.assign(tempArr.begin(), tempArr.end());
 						
-						// add the server socket 
-						newSocketArray.push_back(serverSocket);
 					}else{
 						printf("recv failed: %d\n", WSAGetLastError());
 						closesocket(currSocketFd);
