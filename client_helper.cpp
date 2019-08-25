@@ -4,9 +4,10 @@
 WSADATA wsaData;
 int iResult;
 info guiInfo;
-std::string username;
+std::wstring username;
 SOCKET connectSocket;
 HANDLE receiveThread;
+//char helloBuf[DEFAULT_BUFLEN] = {0}; 
 
 // window handlers for the pages
 HWND chatPage;
@@ -22,6 +23,22 @@ HFONT hFont = CreateFont(16, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, ANSI_CHARS
       DEFAULT_PITCH | FF_DONTCARE, TEXT("Tahoma")
 );
 
+
+std::wstring getWideStringFromString(std::string string){	
+	int sz = MultiByteToWideChar(CP_UTF8, 0, &string[0], -1, NULL, 0);
+	std::wstring res(sz, 0);
+	MultiByteToWideChar(CP_UTF8, 0, &string[0], -1, &res[0], sz);
+	return res;
+}
+
+std::string getStringFromWideString(std::wstring wstring){
+	int sz = WideCharToMultiByte(CP_UTF8, 0, &wstring[0], -1, 0, 0, 0, 0);
+	std::string res(sz, 0);
+	WideCharToMultiByte(CP_UTF8, 0, &wstring[0], -1, &res[0], sz, 0, 0);
+	return res;
+}
+
+
 // to be executed in new thread
 DWORD WINAPI receiveMessagesProc(LPVOID lpParam){
 	
@@ -29,31 +46,38 @@ DWORD WINAPI receiveMessagesProc(LPVOID lpParam){
 	HWND textBox = GetDlgItem(window, ID_TEXTAREA);
 	
 	// pass in the socket for this client to receive on  
-	SOCKET clientSock = ((info *)lpParam)->socket; //*(SOCKET *)lpParam;
-	char recvbuf[DEFAULT_BUFLEN] = {0};
+	SOCKET clientSock = ((info *)lpParam)->socket;
+	char recvbuf[DEFAULT_BUFLEN];
 	int recvbuflen = DEFAULT_BUFLEN;
 	int rtnVal;
 	
 	while(1){
 		// clear the recv buffer 
 		ZeroMemory(recvbuf, recvbuflen);
-		rtnVal = recv(clientSock, recvbuf, recvbuflen, 0);
+		rtnVal = recv(clientSock, (char *)recvbuf, recvbuflen, 0);
 		if(rtnVal > 0){	
 			// get curr time
 			std::time_t timeNow = std::time(NULL);
 			std::tm* ptm = std::localtime(&timeNow);
 	
-			char buff[32];
-			std::strftime(buff, 32, "%d-%m-%Y_%H:%M:%S", ptm);
-			std::string currTime = std::string(buff);
+			WCHAR buff[64];
+			std::wcsftime(buff, 64, L"%m-%d-%Y_%H:%M:%S", ptm);
+			std::wstring currTime = std::wstring(buff);
 			
-			std::string s = "\r\n" + currTime + " " + std::string(recvbuf) + "\r\n";
-			std::cout << "message received from server: " << s << std::endl;
+			std::string multiByteMsg = std::string(recvbuf);
+			std::wstring res = getWideStringFromString(multiByteMsg);
+			//std::wcout << L"msg from server: " << res << std::endl;
+			printf("Message received from server: %s\n", recvbuf);
 			
-			int textLen = GetWindowTextLength(textBox);
-			std::cout << "curr text length in text box: " << textLen << std::endl;
-			SendMessage(textBox, EM_SETSEL, textLen, textLen); // move pointer to where new text should go 
-			SendMessage(textBox, EM_REPLACESEL, FALSE, (LPARAM)s.c_str());
+			std::wstring s = L"\r\n" + currTime + L" " + res + L"\r\n";
+			//std::wcout << L"message received from server: " << s << std::endl;
+			
+			int textLen = GetWindowTextLengthW(textBox);
+			std::wcout << L"curr text length in text box: " << textLen << "\n" << std::endl;
+			
+			SendMessageW(textBox, EM_SETSEL, textLen, textLen); // move pointer to where new text should go 
+			SendMessageW(textBox, EM_REPLACESEL, FALSE, (LPARAM)s.c_str());
+			
 		}else if(rtnVal == 0){
 			printf("connection closed.\n");
 			exit(1);
@@ -111,9 +135,9 @@ void createConnectionPage(HWND hwnd, HINSTANCE hInstance){
 	SendMessage(setUsernameLabel, WM_SETFONT, (WPARAM)hFont, true);
 	
 	// edit box to enter a username (max 15 chars)
-	HWND setUsernameBox = CreateWindow(
-		TEXT("edit"),
-		TEXT(""),
+	HWND setUsernameBox = CreateWindowW(
+		TEXT(L"edit"),
+		TEXT(L""),
 		WS_VISIBLE | WS_CHILD | WS_BORDER, 
 		200, 75,  /* x, y coords */
 		150, 20, /* width, height */
@@ -122,7 +146,7 @@ void createConnectionPage(HWND hwnd, HINSTANCE hInstance){
 		hInstance,
 		NULL
 	);
-	SendMessage(setUsernameBox, WM_SETFONT, (WPARAM)hFont, true);
+	SendMessageW(setUsernameBox, WM_SETFONT, (WPARAM)hFont, true);
 	
 	// make a button to connect
 	HWND connectButton = CreateWindow(
@@ -156,9 +180,9 @@ void createConnectionPage(HWND hwnd, HINSTANCE hInstance){
 void createChatPage(HWND hwnd, HINSTANCE hInstance){
 	
 	// text edit area to enter text 
-	HWND enterTextBox = CreateWindow(
-		TEXT("edit"),
-		TEXT(""),
+	HWND enterTextBox = CreateWindowW(
+		TEXT(L"edit"),
+		TEXT(L""),
 		WS_VISIBLE | WS_CHILD | WS_BORDER, 
 		10, 25, 
 		280, 20,
@@ -167,16 +191,16 @@ void createChatPage(HWND hwnd, HINSTANCE hInstance){
 		hInstance,
 		NULL
 	);
-	SendMessage(enterTextBox, WM_SETFONT, (WPARAM)hFont, true);
+	SendMessageW(enterTextBox, WM_SETFONT, (WPARAM)hFont, true);
 	
-	// subclass proc for msg edit box
+	// subclass proc for msg edit box to allow msg sending via enter key press 
 	prevProc = (WNDPROC)GetWindowLong(enterTextBox, GWL_WNDPROC);
 	SetWindowLong(enterTextBox, GWL_WNDPROC, (LONG_PTR)msgEditProc);
 
 	//text area to display text
-	HWND textArea = CreateWindow(
-		TEXT("edit"),
-		TEXT(""),
+	HWND textArea = CreateWindowW(
+		TEXT(L"edit"),
+		TEXT(L""),
 		WS_VISIBLE | WS_CHILD | WS_BORDER | ES_AUTOVSCROLL | ES_MULTILINE | ES_READONLY | WS_VSCROLL, 
 		10, 50, 
 		280, 350,
@@ -185,7 +209,7 @@ void createChatPage(HWND hwnd, HINSTANCE hInstance){
 		hInstance,
 		NULL
 	);
-	SendMessage(textArea, WM_SETFONT, (WPARAM)hFont, true);
+	SendMessageW(textArea, WM_SETFONT, (WPARAM)hFont, true);
 	
 	// make a button to post text  
 	HWND addTextButton = CreateWindow(
@@ -216,6 +240,9 @@ void createChatPage(HWND hwnd, HINSTANCE hInstance){
 	SendMessage(disconnectButton, WM_SETFONT, (WPARAM)hFont, true);
 }
 
+/*
+	function to allow submitting message with enter key 
+*/
 LRESULT CALLBACK msgEditProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 	switch(msg){
 		case WM_CHAR:
@@ -261,22 +288,26 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 				
                 case ID_ADD_TEXT:
                 {	
-					// grab the text in the 'enter text' box
-					// post to server
+					// grab the text in the 'enter text' box and post to server
+					// problem with utf-8 chars: i.e. if just '我' in textbox, 
+					// somehow only 1 byte (I think it should be 3) gets read from the box!! why!? :( 
+					// however, utf-8 chars get read just fine from the username textbox. :/
 					HWND enterTextBox = GetDlgItem(hwnd, ID_ENTER_TEXT_BOX);
-					int textLen = GetWindowTextLength(enterTextBox);
-					TCHAR text[textLen + 1]; // +1 for null term 
-					GetWindowText(enterTextBox, text, textLen + 1);
+					int textLen = GetWindowTextLengthW(enterTextBox);
+					WCHAR text[textLen+1] = {0};	// +1 for null term 
+					GetWindowTextW(enterTextBox, text, sizeof(text));
 					
-					std::string theText = std::string(text);
-					//std::cout << "text entered: " << theText << std::endl;
+					std::wstring theText = std::wstring(text);
+					printf("text entered: %ls\n", theText.c_str());
+					printf("num bytes entered: %d\n", textLen);
 					
 					// send the text to the server to post to all clients 
-					const char *msgBuf = (const char *)theText.c_str();
-					send(connectSocket, msgBuf, (int)strlen(msgBuf), 0);
+					std::string msgBuf = getStringFromWideString(theText);
+					
+					send(connectSocket, msgBuf.c_str(), strlen(msgBuf.c_str()), 0);
 						
 					// clear the textbox after sending the msg 
-					SetDlgItemText(hwnd, ID_ENTER_TEXT_BOX, "");
+					SetDlgItemTextW(hwnd, ID_ENTER_TEXT_BOX, L"");
                 }
                 break;
 				
@@ -295,9 +326,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 					
 					// also get the username!
 					HWND usernameBox = GetDlgItem(hwnd, ID_SET_USERNAME);
-					TCHAR user[16];
-					GetWindowText(usernameBox, user, ID_SET_USERNAME);
-					username = std::string(user);
+					WCHAR user[24];
+					GetWindowTextW(usernameBox, user, sizeof(user));
+					username = std::wstring(user);
+					std::wcout << "size of username: " << username.size() << std::endl;
 				
 					iResult = WSAStartup(MAKEWORD(2,2), &wsaData);
 					if(iResult != 0){
@@ -351,9 +383,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 							UpdateWindow(hwnd);
 							
 							// send server initial message (client identifies self)
-							std::string helloMsg = "hello:" + username;
-							const char *helloMsgBuf = (const char *)helloMsg.c_str();
-							send(connectSocket, helloMsgBuf, (int)strlen(helloMsgBuf), 0);	
+							std::wstring helloMsg = L"hello:" + username;
+							std::string res = getStringFromWideString(helloMsg);
+
+							send(connectSocket, res.c_str(), strlen(res.c_str()), 0);	
 						}
 					}
 				}

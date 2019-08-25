@@ -32,8 +32,13 @@ extern HWND connectionPage;
 
 // functions 
 DWORD WINAPI receiveMessagesProc(LPVOID lpParam);
+
 void createConnectionPage(HWND hwnd, HINSTANCE hInstance);
 void createChatPage(HWND hwnd, HINSTANCE hInstance);
+
+std::wstring getWideStringFromString(std::string string);
+std::string getStringFromWideString(std::wstring wstring);
+
 LRESULT CALLBACK msgEditProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
