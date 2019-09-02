@@ -176,6 +176,42 @@ void createConnectionPage(HWND hwnd, HINSTANCE hInstance){
 	);
 	SendMessage(errConnectLabel, WM_SETFONT, (WPARAM)hFont, true);
 }
+
+/*
+	function to allow submitting message with enter key 
+*/
+LRESULT CALLBACK msgEditProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
+	switch(msg){
+		case WM_CHAR:
+		{
+			// have to do this to suppress beep after enter key press
+			switch(wParam){
+				case VK_RETURN:
+				{
+					return 0;
+				}
+			}
+		}
+		break; 
+				
+		case WM_KEYDOWN:
+		{
+			switch(wParam){
+				case VK_RETURN:
+				{
+					// get this edit box's parent window handle (so we can pass it a message)
+					HWND parentWindow = (HWND)GetWindowLong(hwnd, GWL_HWNDPARENT);
+					SendMessage(parentWindow, WM_COMMAND, (WPARAM)MAKELPARAM(ID_ADD_TEXT, 0), true);
+					return 0;
+				}
+				break;
+			}
+		}
+		break;
+	}
+	// note that this return relies on the global variable prevProc
+	return CallWindowProc(prevProc, hwnd, msg, wParam, lParam);
+}
 	
 void createChatPage(HWND hwnd, HINSTANCE hInstance){
 	
@@ -194,8 +230,9 @@ void createChatPage(HWND hwnd, HINSTANCE hInstance){
 	SendMessageW(enterTextBox, WM_SETFONT, (WPARAM)hFont, true);
 	
 	// subclass proc for msg edit box to allow msg sending via enter key press 
-	prevProc = (WNDPROC)GetWindowLong(enterTextBox, GWL_WNDPROC);
-	SetWindowLong(enterTextBox, GWL_WNDPROC, (LONG_PTR)msgEditProc);
+	// note the GetWindowLongW and SetWindowLongW (for unicode support)
+	prevProc = (WNDPROC)GetWindowLongW(enterTextBox, GWL_WNDPROC);
+	SetWindowLongW(enterTextBox, GWL_WNDPROC, (LONG_PTR)msgEditProc);
 
 	//text area to display text
 	HWND textArea = CreateWindowW(
@@ -240,42 +277,6 @@ void createChatPage(HWND hwnd, HINSTANCE hInstance){
 	SendMessage(disconnectButton, WM_SETFONT, (WPARAM)hFont, true);
 }
 
-/*
-	function to allow submitting message with enter key 
-*/
-LRESULT CALLBACK msgEditProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
-	switch(msg){
-		case WM_CHAR:
-		{
-			// have to do this to suppress beep after enter key press
-			switch(wParam){
-				case VK_RETURN:
-				{
-					return 0;
-				}
-			}
-		}
-		break; 
-				
-		case WM_KEYDOWN:
-		{
-			switch(wParam){
-				case VK_RETURN:
-				{
-					// get this edit box's parent window handle (so we can pass it a message)
-					HWND parentWindow = (HWND)GetWindowLong(hwnd, GWL_HWNDPARENT);
-					SendMessage(parentWindow, WM_COMMAND, (WPARAM)MAKELPARAM(ID_ADD_TEXT, 0), true);
-					return 0;
-				}
-				break;
-			}
-		}
-		break;
-	}
-	// note that this return relies on the global variable prevProc
-	return CallWindowProc(prevProc, hwnd, msg, wParam, lParam);
-}
-
 // for the chat page 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
     
@@ -289,13 +290,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
                 case ID_ADD_TEXT:
                 {	
 					// grab the text in the 'enter text' box and post to server
-					// problem with utf-8 chars: i.e. if just '我' in textbox, 
-					// somehow only 1 byte (I think it should be 3) gets read from the box!! why!? :( 
-					// however, utf-8 chars get read just fine from the username textbox. :/
 					HWND enterTextBox = GetDlgItem(hwnd, ID_ENTER_TEXT_BOX);
 					int textLen = GetWindowTextLengthW(enterTextBox);
 					WCHAR text[textLen+1] = {0};	// +1 for null term 
 					GetWindowTextW(enterTextBox, text, sizeof(text));
+					printf("text: %d\n", (int)text[0]);
 					
 					std::wstring theText = std::wstring(text);
 					printf("text entered: %ls\n", theText.c_str());
