@@ -1,5 +1,4 @@
 // server using winsock2
-
 #define _WIN32_WINNT 0x501 // https://stackoverflow.com/questions/36420044/winsock-server-and-client-c-code-getaddrinfo-was-not-declared-in-this-scope
 
 #include <winsock2.h>
@@ -60,6 +59,19 @@ void socketErrorCheck(int returnValue, SOCKET socketToClose, const char* action)
 	exit(1);
 }
 
+std::wstring getWideStringFromString(std::string string){	
+	int sz = MultiByteToWideChar(CP_UTF8, 0, &string[0], -1, NULL, 0);
+	std::wstring res(sz, 0);
+	MultiByteToWideChar(CP_UTF8, 0, &string[0], -1, &res[0], sz);
+	return res;
+}
+
+std::string getStringFromWideString(std::wstring wstring){
+	int sz = WideCharToMultiByte(CP_UTF8, 0, &wstring[0], -1, 0, 0, 0, 0);
+	std::string res(sz, 0);
+	WideCharToMultiByte(CP_UTF8, 0, &wstring[0], -1, &res[0], sz, 0, 0);
+	return res;
+}
 
 int main(void){
 	
@@ -85,7 +97,7 @@ int main(void){
 	std::vector<SOCKET> socketsArray;
 	
 	// map socket fds to usernames
-	std::unordered_map<SOCKET, std::string> socketToUserMap;
+	std::unordered_map<SOCKET, std::wstring> socketToUserMap;
 	
 	// intialize winsock 
 	iResult = WSAStartup(MAKEWORD(2,2), &wsaData);
@@ -163,49 +175,71 @@ int main(void){
 					// get the new data 
 					iResult = recv(currSocketFd, recvbuf, recvbuflen, 0);
 					
-					if(iResult > 0){
-						// https://stackoverflow.com/questions/53094542/socket-programming-in-c-when-client-exit-server-the-server-is-crashed
-						printf("Bytes received by server: %d\n", iResult);
-						printf("Message received by server: %s\n", recvbuf);
-						
+					if(iResult > 0){			
 						// check for initial message sent by client, which should identify themself via a username 
 						// then add the name to the socketToUserMap
 						// then broadcast to all users the new user 
-						std::string msg(recvbuf);
+						std::string multiByteMsg = std::string(recvbuf);
+						std::wstring msg = getWideStringFromString(multiByteMsg);
+						std::wcout << L"Bytes received by server: " << iResult << std::endl;
+						printf("Message received by server: %s\n", recvbuf);
+						//std::wcout << L"msg after to wide char conversion: " << msg << std::endl;
 						
 						// the format for all messages is like this:
 						// [IDENTIFIER]:[message]
 						// where IDENTIFIER can be either "hello" (initial message from client to server) or "msg" (any messages from client after the initial)
 						// so we should find the index of the first colon, take the substring from 0 to that index, and check the string 
-						std::string identifier = msg.substr(0, msg.find(":"));
-						std::string restOfMsg = msg.substr(msg.find(":") + 1, strlen(msg.c_str()));
+						std::wstring identifier = msg.substr(0, msg.find(L":"));
+						std::wstring restOfMsg = msg.substr(msg.find(L":") + 1, msg.size());
 						
-						if(identifier == "hello"){
-							std::string newClientJoinedMsg = restOfMsg + " has joined the server!";
-							std::cout << newClientJoinedMsg << std::endl;
+						// for some reason, it seems that restOfMsg has a null-terminator appended so that any concatenation 
+						// with any string after it will just not show up when posted to the GUI via SendMessage as a char buffer 
+						// so this section removes the null term, which seems to work.
+						// might be worth exploring what happens/what is actually in the output of a std::wstring + L"" string
+						wchar_t temp[restOfMsg.size() + 1] = {0};
+						for(int i = 0; i < (int)restOfMsg.size(); i++){
+							if(restOfMsg[i] != 0){
+								temp[i] = restOfMsg[i];
+							}
+						}
+						restOfMsg = std::wstring(temp);
+						
+						std::wcout << L"size of rest of msg: " << restOfMsg.size() << std::endl;
+						/*
+						for(int i = 0; i < (int)restOfMsg.size(); i++){
+							printf("char: %i\n", (int)restOfMsg[i]);
+						}*/
+						
+						if(identifier == L"hello"){
+							std::wstring newClientJoinedMsg = restOfMsg + L" has joined the server!";
+							std::wcout << newClientJoinedMsg << std::endl;
 							
-							// add new user to map (restOfMSg in this case is the username)
-							socketToUserMap.insert( std::pair<SOCKET, std::string>(currSocketFd, restOfMsg) );
-							std::cout << "adding user: " << restOfMsg << ", socket fd: " << currSocketFd << std::endl;
+							// add new user to map (restOfMsg in this case is the username)
+							socketToUserMap.insert( std::pair<SOCKET, std::wstring>(currSocketFd, restOfMsg) );
+							std::wcout << L"adding user: " << restOfMsg << L", socket fd: " << currSocketFd << std::endl;
 							
-							const char *msgToSend = (const char *)newClientJoinedMsg.c_str();
+							std::string res = getStringFromWideString(newClientJoinedMsg);
+							
+							char *msgToSend = (char *)res.c_str();
 							for(int j = 1; j < (int)newSocketArray.size(); j++){
 								// broadcast to everyone 
 								SOCKET sockFd = (SOCKET)newSocketArray.at(j);
-								sendResult = send(sockFd, msgToSend, (int)strlen(msgToSend), 0);
+								sendResult = send(sockFd, msgToSend, strlen(msgToSend), 0);
 								socketErrorCheck(sendResult, sockFd, "new client joined initial send");
 							}
-						}else{							
-							// also, who sent the message? everyone needs to know! 
-							std::string msg = std::string(recvbuf);
-							msg = socketToUserMap[currSocketFd] + ": " + msg;
+						}else{
+							// who sent the message? everyone needs to know! 
+							//std::wstring msg = std::wstring(recvbuf);
+							msg = socketToUserMap[currSocketFd] + L": " + msg;
+							
+							std::string res = getStringFromWideString(msg);
 							
 							// send message back to all connected clients 
 							// skip first index since that's the server socket (used only for accepting new clients)
 							// https://stackoverflow.com/questions/11532311/winsock-send-always-returns-error-10057-in-server
 							for(int j = 1; j < (int)newSocketArray.size(); j++){
 								SOCKET sockFd = (SOCKET)newSocketArray.at(j);
-								sendResult = send(sockFd, msg.c_str(), (int)msg.size() + 1, 0);
+								sendResult = send(sockFd, res.c_str(), (int)strlen(res.c_str()), 0);
 								socketErrorCheck(sendResult, sockFd, "broadcast");
 							}
 						}
@@ -224,22 +258,22 @@ int main(void){
 						FD_CLR(currSocketFd, &activeFdSet);
 						
 						// user that has left 
-						std::string userThatLeft = socketToUserMap[currSocketFd];
+						std::wstring userThatLeft = socketToUserMap[currSocketFd];
 						
 						// remove the socket of the user that left from map  
 						socketToUserMap.erase(currSocketFd);
 						
 						// who else is in the server 
-						std::cout << "remaining users: " << std::endl;
-						std::unordered_map<SOCKET, std::string>::iterator it;
+						std::wcout << L"remaining users: " << std::endl;
+						std::unordered_map<SOCKET, std::wstring>::iterator it;
 						for (it=socketToUserMap.begin(); it!=socketToUserMap.end(); ++it){
-							std::cout << "key: " << it->first << ", value: " << it->second << std::endl;
+							std::wcout << L"key: " << it->first << L", value: " << it->second << std::endl;
 						}
 						
 						// need to remove the socket from the sockets array!
 						// use the new socket array to record changes. 
-						std::string leftMsg = userThatLeft + " has left the server!";
-						std::cout << leftMsg << std::endl;
+						std::wstring leftMsg = userThatLeft + L" has left the server!";
+						std::wcout << leftMsg << std::endl;
 						
 						std::vector<SOCKET> tempArr; 
 						
@@ -251,7 +285,8 @@ int main(void){
 								tempArr.push_back((SOCKET)sock);
 								
 								// tell the user at this socket who left the server 
-								sendResult = send(sock, leftMsg.c_str(), (int)leftMsg.size() + 1, 0);
+								std::string byeMsg = getStringFromWideString(leftMsg);
+								sendResult = send(sock, byeMsg.c_str(), strlen(byeMsg.c_str()), 0);
 								socketErrorCheck(sendResult, sock, "send");
 							}
 						}

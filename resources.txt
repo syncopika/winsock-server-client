@@ -14,3 +14,19 @@ https://stackoverflow.com/questions/23296419/c-winapi-subclassing-an-edit-contro
 
 // good to know (my current file structure is whack)
 https://stackoverflow.com/questions/10422034/when-to-use-extern-in-c
+
+https://stackoverflow.com/questions/53094542/socket-programming-in-c-when-client-exit-server-the-server-is-crashed
+
+// unicode support? this is hard... (just need to use the W variant of any function that has one, for the most part)
+http://forums.codeguru.com/showthread.php?441747-sending-unicode-over-winsock
+https://stackoverflow.com/questions/4350259/how-do-i-send-wide-characters-using-winsocks-send-function
+https://stackoverflow.com/questions/6475799/making-win32-application-work-on-ansi-unicode
+https://docs.microsoft.com/en-us/windows/win32/learnwin32/working-with-strings
+https://stackoverflow.com/questions/23136837/in-c-when-to-use-wchar-and-when-to-use-char
+https://social.msdn.microsoft.com/Forums/en-US/c8df8f40-5bc1-422f-b873-785532c2f0ce/wchart-to-const-char-?forum=vcgeneral
+http://forums.codeguru.com/showthread.php?511770-How-to-send-unicode-through-socket
+https://stackoverflow.com/questions/215963/how-do-you-properly-use-widechartomultibyte
+https://stackoverflow.com/questions/40317030/c-converting-wchar-t-to-network-byte-and-back
+https://social.msdn.microsoft.com/Forums/vstudio/en-US/3fb100ff-e33d-45b5-99ae-5c85604cef56/unicode-support-for-win-32-edit-box-control?forum=vcgeneral
+https://stackoverflow.com/questions/6693010/how-do-i-use-multibytetowidechar
+https://stackoverflow.com/questions/14184709/is-this-code-safe-using-wstring-with-multibytetowidechar
